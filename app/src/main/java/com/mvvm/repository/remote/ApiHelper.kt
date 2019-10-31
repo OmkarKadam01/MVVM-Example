@@ -1,7 +1,7 @@
 package com.mvvm.repository.remote
 
+import com.mvvm.repository.models.api.categories.CategoriesResponse
 import com.mvvm.repository.remote.Utils.Gson
-import com.mvvm.ui.landing.pojo.StandingsMainData
 import com.mvvm.ui.landing.pojo.UserResponse
 import io.reactivex.Observable
 import retrofit2.http.GET
@@ -14,11 +14,12 @@ interface ApiHelper {
      *   -break the list into smaller intefaces representing each individual components
      *  - implement those interface in the Data repository abstraction
      */
-    @GET
-    @Gson
-    fun getStandingsData(@Url standingsUrl: String): Observable<StandingsMainData>
 
     @GET
     @Gson
-    fun getUsersData(@Url standingsUrl: String): Observable<List<UserResponse>>
+    fun getUsersData(@Url usersUrl: String): Observable<List<UserResponse>>
+
+    @GET
+    @Gson
+    fun getCategoriesData(@Url categoriesUrl: String): Observable<List<CategoriesResponse>>
 }
