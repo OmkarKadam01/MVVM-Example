@@ -7,6 +7,7 @@ import android.arch.lifecycle.ViewModelProviders
 import android.databinding.BindingAdapter
 import android.graphics.Color
 import android.os.Bundle
+import android.os.Handler
 import android.support.v7.widget.DefaultItemAnimator
 import android.support.v7.widget.LinearLayoutManager
 import android.support.v7.widget.RecyclerView
@@ -56,7 +57,8 @@ class LandingActivity: BaseActivity<ActivityLandingBinding, LandingViewModel>(),
 
     var categoryArrayList: ArrayList<Category>? = null
     var subCategory: ArrayList<SubCategory>? = null
-    var ASK_QUESTION_REQUEST = 1
+    var isFirstTimeCategory = true
+    var isFirstTimeSub = true
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         mActivityLandingBinding = getViewDataBinding()
@@ -94,7 +96,7 @@ class LandingActivity: BaseActivity<ActivityLandingBinding, LandingViewModel>(),
         })
         landingViewModel.subCategoriesLiveData.observe(this, Observer {
             subCategory=it as ArrayList<SubCategory>
-            setSubCategorySpinner(it as ArrayList<SubCategory>)
+            setSubCategorySpinner(it as ArrayList<SubCategory>,true)
         })
     }
     override fun getBindingVariable(): Int = BR.viewModel
@@ -182,14 +184,17 @@ class LandingActivity: BaseActivity<ActivityLandingBinding, LandingViewModel>(),
 
     }
 
-    private fun setSubCategorySpinner(subCategoryArrayList: ArrayList<SubCategory>) {
+    private fun setSubCategorySpinner(subCategoryArrayList: ArrayList<SubCategory>,addFirst:Boolean) {
 
-        val ls = SubCategory()
-        val text = "Select SubCategory"
+        if (addFirst){
 
-        ls.subCategoryName=text
-        ls.subCategoryId=0
-        subCategoryArrayList.add(0, ls)
+            val ls = SubCategory()
+            val text = "Select SubCategory"
+
+            ls.subCategoryName=text
+            ls.subCategoryId=0
+            subCategoryArrayList.add(0, ls)
+        }
         val dataAdapter = object : ArrayAdapter<SubCategory>(this, android.R.layout.simple_list_item_1,
             subCategoryArrayList) {
             override fun getCount(): Int {
@@ -250,17 +255,29 @@ class LandingActivity: BaseActivity<ActivityLandingBinding, LandingViewModel>(),
         mActivityLandingBinding?.categorySpinner?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
              //   subCategory?.let { setSubCategorySpinner(it) }
+            if (!isFirstTimeCategory){
+                subCategory?.let { setSubCategorySpinner(it,false) }
+                isFirstTimeSub=true
+                Handler().postDelayed({
+                    landingViewModel.filterData(categoryArrayList?.get(position)?.childCategoryIdList)
 
-                landingViewModel.filterData(categoryArrayList?.get(position)?.childCategoryIdList)
+                }, 300)
+            }
+                isFirstTimeCategory=false
+
             }
 
             override fun onNothingSelected(parent: AdapterView<*>) {}
         }
         mActivityLandingBinding?.subCategorySpinner?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
+                if (!isFirstTimeSub){
+
                 var list= ArrayList<Int>()
                 list.add(subCategory?.get(position)?.subCategoryId?:0)
                 landingViewModel.filterData(list )
+            }
+                isFirstTimeSub=false
             }
 
             override fun onNothingSelected(parent: AdapterView<*>) {}
