@@ -4,32 +4,33 @@ import android.app.Activity
 import android.arch.lifecycle.Observer
 import android.arch.lifecycle.ViewModelProvider
 import android.arch.lifecycle.ViewModelProviders
-import android.content.Intent
 import android.databinding.BindingAdapter
+import android.graphics.Color
 import android.os.Bundle
 import android.support.v7.widget.DefaultItemAnimator
 import android.support.v7.widget.LinearLayoutManager
 import android.support.v7.widget.RecyclerView
 import android.support.v7.widget.helper.ItemTouchHelper
-import android.widget.ImageView
-import android.widget.Toast
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.*
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import com.mvvm.BR
 import com.mvvm.R
 import com.mvvm.databinding.ActivityLandingBinding
-import com.mvvm.repository.models.api.Users
+import com.mvvm.repository.models.mapped.Category
+import com.mvvm.repository.models.mapped.Product
+import com.mvvm.repository.models.mapped.SubCategory
 import com.mvvm.ui.base.BaseActivity
 import com.mvvm.ui.base.ItemClicked
 import com.mvvm.ui.landing.adapter.LandingAdapter
-import com.mvvm.ui.userdetails.UserDetailsActivity
 import javax.inject.Inject
 
 
-
-
 @BindingAdapter("bind:adapter")
-fun observeStandingList(recyclerView: RecyclerView, standingList: List<Users>) {
+fun observeStandingList(recyclerView: RecyclerView, standingList: List<Product>) {
     val adapter = recyclerView.adapter as? LandingAdapter
     adapter?.clearAllItems()
     adapter?.addAllItems(standingList)
@@ -52,14 +53,16 @@ class LandingActivity: BaseActivity<ActivityLandingBinding, LandingViewModel>(),
     lateinit var standingsAdapter: LandingAdapter
     @Inject
     lateinit var layoutManager: LinearLayoutManager
+
+    var categoryArrayList: ArrayList<Category>? = null
+    var subCategory: ArrayList<SubCategory>? = null
     var ASK_QUESTION_REQUEST = 1
-    var lastClickedUser=Users()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         mActivityLandingBinding = getViewDataBinding()
-        landingViewModel.fetchUserData()
+        landingViewModel.getCategoriesData()
         setUpStandingsList()
-
+        handleClicks()
 
         val simpleItemTouchCallback = object : ItemTouchHelper.SimpleCallback(
             0,
@@ -85,6 +88,14 @@ class LandingActivity: BaseActivity<ActivityLandingBinding, LandingViewModel>(),
         val itemTouchHelper = ItemTouchHelper(simpleItemTouchCallback)
         itemTouchHelper.attachToRecyclerView(mActivityLandingBinding?.standingsRecyclerView)
         landingViewModel.standingsLiveData.observe(this, Observer { landingViewModel.updateStandingsList(it) })
+        landingViewModel.categoriesLiveData.observe(this, Observer {
+            categoryArrayList=it as ArrayList<Category>
+            setCategorySpinner(it as ArrayList<Category>)
+        })
+        landingViewModel.subCategoriesLiveData.observe(this, Observer {
+            subCategory=it as ArrayList<SubCategory>
+            setSubCategorySpinner(it as ArrayList<SubCategory>)
+        })
     }
     override fun getBindingVariable(): Int = BR.viewModel
 
@@ -94,11 +105,8 @@ class LandingActivity: BaseActivity<ActivityLandingBinding, LandingViewModel>(),
 
     override fun getLayoutId(): Int = R.layout.activity_landing
     override fun onItemClicked(obj: Any) {
-        var user= obj as Users
-        val intent = Intent(this, UserDetailsActivity::class.java)
-        intent.putExtra("URL",user.image )
-        lastClickedUser=user
-        startActivityForResult(intent, ASK_QUESTION_REQUEST);
+
+       // startActivityForResult(intent, ASK_QUESTION_REQUEST);
     }
     private fun setUpStandingsList() {
 
@@ -109,25 +117,153 @@ class LandingActivity: BaseActivity<ActivityLandingBinding, LandingViewModel>(),
         Toast.makeText(this@LandingActivity, "Swipe to delete row ", Toast.LENGTH_SHORT).show()
 
     }
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
+    private fun setCategorySpinner(categoryArrayList: ArrayList<Category>) {
 
-        // check if the request code is same as what is passed  here it is 1
-        if (requestCode == ASK_QUESTION_REQUEST) {
-            // Make sure the request was successful
-            if (resultCode == Activity.RESULT_OK) {
-                if (data!=null){
-                    val result = data?.getStringExtra(UserDetailsActivity.Result_DATA)
+        val ls = Category()
+        val text = "Select Category"
 
-                    var position=landingViewModel.standingsArrayList.indexOf(lastClickedUser)
-                    landingViewModel.standingsArrayList.removeAt(position)
-                    standingsAdapter.removeItem(position)
-                    standingsAdapter.notifyDataSetChanged()
+        ls.categoryName=text
+        ls.categoryId=0
+        categoryArrayList.add(0, ls)
+        val dataAdapter = object : ArrayAdapter<Category>(this, android.R.layout.simple_list_item_1,
+            categoryArrayList) {
+            override fun getCount(): Int {
+                return categoryArrayList.size
+            }
+
+            override fun getDropDownView(position: Int, convertView: View?,
+                                         parent: ViewGroup
+            ): View {
+
+                val inflater = getSystemService(Activity.LAYOUT_INFLATER_SERVICE) as LayoutInflater
+                val view: View
+
+                if (position == 0) {
+                    view = inflater.inflate(R.layout.layout_hint_spinner, parent, false) // Hide first row
+                } else {
+                    view = inflater.inflate(android.R.layout.simple_spinner_dropdown_item, parent, false)
+                    val label = view.findViewById<View>(android.R.id.text1) as TextView
+                    label.text = categoryArrayList[position].categoryName
+               //     label.typeface= Typeface.createFromAsset(this.context.assets,"fonts/NoirProRegular.ttf")
+                    label.setTextColor(Color.parseColor("#093F89"))
+                    label.textSize = 16f
+                    //    label.typeface = Typeface.DEFAULT_BOLD
+                    label.setPadding(20, 0, 0, 10)
                 }
-                // Use the data - in this case display it in a Toast.
-              //  Toast.makeText(this, "Result: $result", Toast.LENGTH_LONG).show()
+                return view
+            }
+
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val v = super.getView(position, convertView, parent)
+                val label = TextView(this.context)
+                label.setTextColor(Color.GRAY)
+            //    label.typeface= Typeface.createFromAsset(this.context.assets,"fonts/NoirProRegular.ttf")
+                //  label.typeface = Typeface.DEFAULT_BOLD
+                label.textSize = 16f
+
+                val params = RelativeLayout.LayoutParams(
+                    RelativeLayout.LayoutParams.WRAP_CONTENT,
+                    RelativeLayout.LayoutParams.WRAP_CONTENT)
+                label.setPadding(20, 0, 0, 10)
+                if (position == 0) {
+                    label.text = ""
+                    label.setText(categoryArrayList[position].categoryName) //"Hint to be displayed"
+                } else {
+                    label.setText(categoryArrayList[position].categoryName)
+              //      label.typeface= Typeface.createFromAsset(this.context.assets,"fonts/NoirProRegular.ttf")
+                    label.setTextColor(Color.parseColor("#093F89"))
+                    //   label.typeface = Typeface.DEFAULT_BOLD
+                }
+                label.layoutParams = params
+                return label
             }
         }
+        mActivityLandingBinding?.categorySpinner?.setAdapter(dataAdapter)
+
     }
 
+    private fun setSubCategorySpinner(subCategoryArrayList: ArrayList<SubCategory>) {
+
+        val ls = SubCategory()
+        val text = "Select SubCategory"
+
+        ls.subCategoryName=text
+        ls.subCategoryId=0
+        subCategoryArrayList.add(0, ls)
+        val dataAdapter = object : ArrayAdapter<SubCategory>(this, android.R.layout.simple_list_item_1,
+            subCategoryArrayList) {
+            override fun getCount(): Int {
+                return subCategoryArrayList.size
+            }
+
+            override fun getDropDownView(position: Int, convertView: View?,
+                                         parent: ViewGroup
+            ): View {
+
+                val inflater = getSystemService(Activity.LAYOUT_INFLATER_SERVICE) as LayoutInflater
+                val view: View
+
+                if (position == 0) {
+                    view = inflater.inflate(R.layout.layout_hint_spinner, parent, false) // Hide first row
+                } else {
+                    view = inflater.inflate(android.R.layout.simple_spinner_dropdown_item, parent, false)
+                    val label = view.findViewById<View>(android.R.id.text1) as TextView
+                    label.text = subCategoryArrayList[position].subCategoryName
+               //     label.typeface= Typeface.createFromAsset(this.context.assets,"fonts/NoirProRegular.ttf")
+                    label.setTextColor(Color.parseColor("#093F89"))
+                    label.textSize = 16f
+                    //    label.typeface = Typeface.DEFAULT_BOLD
+                    label.setPadding(20, 0, 0, 10)
+                }
+                return view
+            }
+
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val v = super.getView(position, convertView, parent)
+                val label = TextView(this.context)
+                label.setTextColor(Color.GRAY)
+            //    label.typeface= Typeface.createFromAsset(this.context.assets,"fonts/NoirProRegular.ttf")
+                //  label.typeface = Typeface.DEFAULT_BOLD
+                label.textSize = 16f
+
+                val params = RelativeLayout.LayoutParams(
+                    RelativeLayout.LayoutParams.WRAP_CONTENT,
+                    RelativeLayout.LayoutParams.WRAP_CONTENT)
+                label.setPadding(20, 0, 0, 10)
+                if (position == 0) {
+                    label.text = ""
+                    label.setText(subCategoryArrayList[position].subCategoryName) //"Hint to be displayed"
+                } else {
+                    label.setText(subCategoryArrayList[position].subCategoryName)
+              //      label.typeface= Typeface.createFromAsset(this.context.assets,"fonts/NoirProRegular.ttf")
+                    label.setTextColor(Color.parseColor("#093F89"))
+                    //   label.typeface = Typeface.DEFAULT_BOLD
+                }
+                label.layoutParams = params
+                return label
+            }
+        }
+        mActivityLandingBinding?.subCategorySpinner?.setAdapter(dataAdapter)
+
+    }
+    private fun handleClicks(){
+        mActivityLandingBinding?.categorySpinner?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
+             //   subCategory?.let { setSubCategorySpinner(it) }
+
+                landingViewModel.filterData(categoryArrayList?.get(position)?.childCategoryIdList)
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>) {}
+        }
+        mActivityLandingBinding?.subCategorySpinner?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
+                var list= ArrayList<Int>()
+                list.add(subCategory?.get(position)?.subCategoryId?:0)
+                landingViewModel.filterData(list )
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>) {}
+        }
+    }
 }

@@ -11,7 +11,7 @@ data class CategoriesItem(
 	val id: Int? = null,
 
 	@field:SerializedName("child_categories")
-	val childCategories: List<Any?>? = null,
+	val childCategories: List<Int?>? = null,
 
 	@field:SerializedName("products")
 	val products: List<ProductsItem?>? = null
